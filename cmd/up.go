@@ -3,6 +3,9 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"github.com/spf13/cobra"
 	"github.com/sarth-shah20/stasis/internal/docker"
 )
@@ -33,7 +36,40 @@ var upCmd = &cobra.Command{
 		// 2. Loop through services
 		for name, service := range cfg.Services {
 			fmt.Printf("\n--- Setting up %s ---\n", name)
+
+			// Prepare Volumes
+			var volumeBinds []string
+
+			// Get user home directory
+			homeDir, _ := os.UserHomeDir()
+			projectBase := filepath.Join(homeDir, ".stasis", "volumes", cfg.Name, name)
+			//host path: we will use a hidden folder in user's home directory: ~/.stasis/volumes/<project>/<service>
+			//container path: YAML will specify
 			
+			for _, vol := range service.Volumes {
+				// Format in YAML: "name:/var/lib/data"
+				// We want to map: "~/.stasis/volumes/project/service/name" -> "/var/lib/data"
+				
+				// Split the volume string "name:path"
+				// Note: This is a naive split. Windows paths might break this.
+				// For time being, we'll assume Linux/Mac style.
+                // Later, we will use a more robust parser.
+				parts := strings.Split(vol,":")
+				if len(parts) == 2 {
+					hostPath := filepath.Join(projectBase, parts[0])
+					containerPath := parts[1]
+					
+					// Ensure host directory exists
+					if err := os.MkdirAll(hostPath, 0755); err != nil {
+						return fmt.Errorf("failed to create volume dir: %w", err)
+					}
+					
+					// Create the bind string: "/abs/path/on/host:/path/in/container"
+					bind := fmt.Sprintf("%s:%s", hostPath, containerPath)
+					volumeBinds = append(volumeBinds, bind)
+				}
+			}
+
 			// Pull Image
 			if err := mgr.EnsureImage(ctx, service.Image); err != nil {
 				return fmt.Errorf("failed to pull image: %w", err)
@@ -46,7 +82,7 @@ var upCmd = &cobra.Command{
 			}
 
 			// Start Container
-			if err := mgr.StartContainer(ctx, name, service.Image, networkName, portMap); err != nil {
+			if err := mgr.StartContainer(ctx, name, service.Image, networkName, portMap, service.Environment, volumeBinds); err != nil {
 				return fmt.Errorf("failed to start %s: %w", name, err)
 			}
 		}

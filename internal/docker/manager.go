@@ -91,7 +91,9 @@ func (m *Manager) EnsureNetwork(ctx context.Context, networkName string) error {
 // imageName: e.g., "postgres:14"
 // networkName: e.g., "stasis-myproject"
 // portMap: e.g., "5432:5432" (host:container)
-func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, networkName, portMapping string) error {
+func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, networkName,
+								portMapping string, envVars []string, volumes []string) error {
+
 	containerName := fmt.Sprintf("stasis-%s", serviceName)
 
 	// 1. Configure Port Mapping (Host -> Container)
@@ -126,13 +128,13 @@ func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, ne
 	config := &container.Config{
 		Image:        imageName,
 		ExposedPorts: exposedPorts,
-		// We will add Env vars here later
+		Env:          envVars,
 	}
 
 	// 3. Define the Host Config (Outside)
 	hostConfig := &container.HostConfig{
 		PortBindings: portBindings,
-		// We will add Volumes here later
+		Binds:        volumes,
 	}
 
 	// 4. Define Network Config
