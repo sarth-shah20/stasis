@@ -13,6 +13,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
+
+	"github.com/docker/docker/api/types/filters"
 )
 
 // Manager handles all interactions with the Docker Daemon
@@ -91,10 +93,10 @@ func (m *Manager) EnsureNetwork(ctx context.Context, networkName string) error {
 // imageName: e.g., "postgres:14"
 // networkName: e.g., "stasis-myproject"
 // portMap: e.g., "5432:5432" (host:container)
-func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, networkName,
+func (m *Manager) StartContainer(ctx context.Context, projectName, serviceName, imageName, networkName,
 								portMapping string, envVars []string, volumes []string) error {
 
-	containerName := fmt.Sprintf("stasis-%s", serviceName)
+	containerName := fmt.Sprintf("stasis-%s-%s", projectName, serviceName)
 
 	// 1. Configure Port Mapping (Host -> Container)
 	// We need to parse "5432:5432" into Docker's format
@@ -127,6 +129,13 @@ func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, ne
 	// 2. Define the Container Config (Inside)
 	config := &container.Config{
 		Image:        imageName,
+
+		Labels: map[string]string{
+			"stasis.project": projectName,
+			"stasis.service": serviceName,
+			"stasis.managed": "true",
+		},
+
 		ExposedPorts: exposedPorts,
 		Env:          envVars,
 	}
@@ -164,4 +173,47 @@ func (m *Manager) StartContainer(ctx context.Context, serviceName, imageName, ne
 	}
 
 	return nil
+}
+
+// ListContainers returns a list of containers belonging to stasis
+func (m *Manager) ListContainers(ctx context.Context, projectName string) ([]types.Container, error) {
+	// Create a filter: label="stasis.project=<projectName>"
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", fmt.Sprintf("stasis.project=%s", projectName))
+
+	return m.cli.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filterArgs,
+	})
+}
+
+// StopAndRemoveContainer stops and deletes a container
+func (m *Manager) StopAndRemoveContainer(ctx context.Context, projectName string,serviceName string) error {
+	containerName := fmt.Sprintf("stasis-%s-%s", projectName, serviceName)
+	
+	fmt.Printf("Stopping %s...\n", containerName)
+	
+	// timeout := 10 // Seconds to wait for graceful shutdown
+    // In newer SDKs, ContainerStop takes a pointer to int or ContainerStopOptions
+    // We will use the default (nil = 10 seconds)
+	if err := m.cli.ContainerStop(ctx, containerName, container.StopOptions{}); err != nil {
+		// If it's already stopped or doesn't exist, just log and continue
+		fmt.Printf("Warning: failed to stop %s (might not be running): %v\n", containerName, err)
+	}
+
+	fmt.Printf("Removing %s...\n", containerName)
+	if err := m.cli.ContainerRemove(ctx, containerName, container.RemoveOptions{
+		RemoveVolumes: false, // Keep the data!
+		Force:         true,
+	}); err != nil {
+		return fmt.Errorf("failed to remove %s: %w", containerName, err)
+	}
+
+	return nil
+}
+
+// RemoveNetwork deletes the project network
+func (m *Manager) RemoveNetwork(ctx context.Context, networkName string) error {
+	fmt.Printf("Removing network %s...\n", networkName)
+	return m.cli.NetworkRemove(ctx, networkName)
 }

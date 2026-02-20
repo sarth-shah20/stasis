@@ -82,7 +82,7 @@ var upCmd = &cobra.Command{
 			}
 
 			// Start Container
-			if err := mgr.StartContainer(ctx, name, service.Image, networkName, portMap, service.Environment, volumeBinds); err != nil {
+			if err := mgr.StartContainer(ctx, cfg.Name, name, service.Image, networkName, portMap, service.Environment, volumeBinds); err != nil {
 				return fmt.Errorf("failed to start %s: %w", name, err)
 			}
 		}
