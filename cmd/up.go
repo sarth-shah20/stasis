@@ -8,6 +8,7 @@ import (
 	"strings"
 	"github.com/spf13/cobra"
 	"github.com/sarth-shah20/stasis/internal/docker"
+	"github.com/sarth-shah20/stasis/internal/utils"
 )
 
 var upCmd = &cobra.Command{
@@ -41,8 +42,9 @@ var upCmd = &cobra.Command{
 			var volumeBinds []string
 
 			// Get user home directory
-			homeDir, _ := os.UserHomeDir()
-			projectBase := filepath.Join(homeDir, ".stasis", "volumes", cfg.Name, name)
+			baseDir, _ := utils.GetProjectVolumeDir(cfg.Name)
+			projectBase := filepath.Join(baseDir, name)
+
 			//host path: we will use a hidden folder in user's home directory: ~/.stasis/volumes/<project>/<service>
 			//container path: YAML will specify
 			
