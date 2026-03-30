@@ -22,8 +22,6 @@ var upCmd = &cobra.Command{
 		}
 		
 		// 2. Create a Context
-		// Contexts are used to handle timeouts and cancellations.
-		// Background() means "no timeout, run until I say stop".
 		ctx := context.Background()
 
 		fmt.Println("Stasis starting...")

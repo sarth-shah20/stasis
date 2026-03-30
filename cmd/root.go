@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/sarth-shah20/stasis/internal/config" // Import your internal package
+	"github.com/sarth-shah20/stasis/internal/config" // Import internal config package
 )
 
 // Global variable to hold the loaded configuration
