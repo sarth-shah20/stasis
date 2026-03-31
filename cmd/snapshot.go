@@ -13,6 +13,7 @@ import (
 	"github.com/sarth-shah20/stasis/internal/docker"
 	"github.com/sarth-shah20/stasis/internal/snapshot"
 	"github.com/sarth-shah20/stasis/internal/utils"
+	"github.com/sarth-shah20/stasis/internal/remote"
 )
 
 // Helper to extract env vars like "POSTGRES_DB=devdb" -> "devdb"
@@ -213,11 +214,86 @@ var listCmd = &cobra.Command{
 	},
 }
 
+
+var pushCmd = &cobra.Command{
+	Use:   "push [snapshot-name]",
+	Short: "Push a local snapshot to the remote S3 bucket",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		snapshotName := args[0]
+		ctx := context.Background()
+
+		if cfg.Remote.S3.Bucket == "" {
+			return fmt.Errorf("remote S3 bucket is not configured in stasis.yaml")
+		}
+
+		localDir, err := utils.GetSnapshotDir(cfg.Name, snapshotName)
+		if err != nil {
+			return err
+		}
+
+		// Verify the snapshot exists locally before pushing
+		if _, err := os.Stat(localDir); os.IsNotExist(err) {
+			return fmt.Errorf("local snapshot '%s' does not exist. Run 'stasis snapshot save' first", snapshotName)
+		}
+
+		fmt.Printf("Connecting to S3 bucket '%s'...\n", cfg.Remote.S3.Bucket)
+		s3Client, err := remote.NewS3Client(ctx, cfg.Remote.S3.Region, cfg.Remote.S3.Bucket)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Pushing snapshot '%s' to S3...\n", snapshotName)
+		if err := s3Client.Push(ctx, cfg.Name, snapshotName, localDir); err != nil {
+			return err
+		}
+
+		fmt.Println("Snapshot pushed successfully! ☁️")
+		return nil
+	},
+}
+
+var pullCmd = &cobra.Command{
+	Use:   "pull [snapshot-name]",
+	Short: "Pull a remote snapshot from the S3 bucket to your local machine",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		snapshotName := args[0]
+		ctx := context.Background()
+
+		if cfg.Remote.S3.Bucket == "" {
+			return fmt.Errorf("remote S3 bucket is not configured in stasis.yaml")
+		}
+
+		localDir, err := utils.GetSnapshotDir(cfg.Name, snapshotName)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Connecting to S3 bucket '%s'...\n", cfg.Remote.S3.Bucket)
+		s3Client, err := remote.NewS3Client(ctx, cfg.Remote.S3.Region, cfg.Remote.S3.Bucket)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Pulling snapshot '%s' from S3...\n", snapshotName)
+		if err := s3Client.Pull(ctx, cfg.Name, snapshotName, localDir); err != nil {
+			return err
+		}
+
+		fmt.Println("Snapshot pulled successfully! 📥")
+		fmt.Printf("You can now run: stasis snapshot load %s\n", snapshotName)
+		return nil
+	},
+}
+
 func init() {
 	// Wire the subcommands to the parent snapshot command
 	snapshotCmd.AddCommand(saveCmd)
 	snapshotCmd.AddCommand(loadCmd)
 	snapshotCmd.AddCommand(listCmd)
+	snapshotCmd.AddCommand(pushCmd)
+	snapshotCmd.AddCommand(pullCmd)
 
 	// Wire the parent snapshot command to the root command
 	rootCmd.AddCommand(snapshotCmd)

@@ -4,7 +4,18 @@ package config
 type Config struct {
 	Name     string             `mapstructure:"name"`
 	Version  string             `mapstructure:"version"`
+	Remote   RemoteConfig       `mapstructure:"remote"`
 	Services map[string]Service `mapstructure:"services"` // Map keys are service names (e.g., "postgres")
+}
+
+type RemoteConfig struct {
+	S3 S3Config `mapstructure:"s3"`
+}
+
+// S3Config holds AWS S3 specific settings
+type S3Config struct {
+	Bucket string `mapstructure:"bucket"`
+	Region string `mapstructure:"region"`
 }
 
 // Service represents a single container definition
