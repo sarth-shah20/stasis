@@ -20,8 +20,15 @@ type S3Config struct {
 
 // Service represents a single container definition
 type Service struct {
-	Image       string   `mapstructure:"image"`        // e.g., "postgres:14"
-	Ports       []string `mapstructure:"ports"`        // e.g., ["5432:5432"]
-	Environment []string `mapstructure:"environment"`  // e.g., ["POSTGRES_PASSWORD=secret"]
-	Volumes     []string `mapstructure:"volumes"`      // e.g., ["pgdata:/var/lib/postgresql/data"]
+	Image       string      `mapstructure:"image"`        // e.g., "postgres:14"
+	Ports       []string    `mapstructure:"ports"`        // e.g., ["5432:5432"]
+	Environment []string    `mapstructure:"environment"`  // e.g., ["POSTGRES_PASSWORD=secret"]
+	Volumes     []string    `mapstructure:"volumes"`      // e.g., ["pgdata:/var/lib/postgresql/data"]
+	Cloud       CloudConfig `mapstructure:"cloud"`        // optional cloud provisioning config
+}
+
+// CloudConfig holds cloud provider settings for a service
+type CloudConfig struct {
+	Type string `mapstructure:"type"` // "postgres", "redis", "storage"
+	Tier string `mapstructure:"tier"` // "free", "standard"
 }
