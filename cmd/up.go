@@ -70,6 +70,8 @@ func runCloudUp(ctx context.Context) error {
 
 	results := make(map[string]provider.ConnectionInfo)
 
+	var provisionErrors []string
+
 	for name, service := range cfg.Services {
 		// Only provision services that have a cloud config
 		if service.Cloud.Type == "" {
@@ -79,10 +81,16 @@ func runCloudUp(ctx context.Context) error {
 
 		info, err := p.Provision(ctx, cfg.Name, name, service)
 		if err != nil {
-			return fmt.Errorf("failed to provision %s: %w", name, err)
+			fmt.Printf("  ❌ Failed to provision %s: %v\n", name, err)
+        	provisionErrors = append(provisionErrors, name)
+        	continue
 		}
 		results[name] = info
 	}
+
+	if len(provisionErrors) > 0 {
+    fmt.Printf("\nWarning: failed to provision: %s\n", strings.Join(provisionErrors, ", "))
+}
 
 	fmt.Println("\nCloud environment provisioning initiated! ☁️🚀")
 	printConnectionTable(results)

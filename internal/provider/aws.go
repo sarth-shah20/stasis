@@ -179,6 +179,7 @@ func (a *AWSProvider) provisionRDS(ctx context.Context, projectName, serviceName
 		AllocatedStorage:     aws.Int32(allocatedStorage),
 		StorageType:          aws.String("gp2"),
 		PubliclyAccessible:   aws.Bool(true),
+		EnableCloudwatchLogsExports: []string{"postgresql"},
 		Tags: []rdstypes.Tag{
 			{Key: aws.String("stasis.project"), Value: aws.String(projectName)},
 			{Key: aws.String("stasis.service"), Value: aws.String(serviceName)},
@@ -258,6 +259,7 @@ func (a *AWSProvider) provisionElastiCache(ctx context.Context, projectName, ser
 	input := &elasticache.CreateCacheClusterInput{
 		CacheClusterId: aws.String(name),
 		CacheNodeType:  aws.String(nodeType),
+		CacheSubnetGroupName: aws.String("stasis-default"),
 		Engine:         aws.String("redis"),
 		NumCacheNodes:  aws.Int32(1),
 		Tags: []elasticachetypes.Tag{
